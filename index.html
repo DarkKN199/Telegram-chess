@@ -13,9 +13,8 @@
             --card-bg: #1e1e24;
             --text-color: #ffffff;
             --text-secondary: #98989f;
-            --light-square: #e0d0c0;
-            --dark-square: #b58863;
-            --highlight: rgba(255, 255, 0, 0.4);
+            --light-square: #ebecd0;
+            --dark-square: #739552;
         }
 
         body {
@@ -28,7 +27,7 @@
             justify-content: space-between;
             height: 100vh;
             margin: 0;
-            padding: 15px 0;
+            padding: 20px 0;
             box-sizing: border-box;
         }
 
@@ -38,7 +37,7 @@
 
         h2 {
             margin: 0 0 5px 0;
-            font-size: 20px;
+            font-size: 22px;
             font-weight: 600;
         }
 
@@ -54,28 +53,28 @@
             height: 340px;
             border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
         }
 
         .square {
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 36px;
+            font-size: 40px;
             cursor: pointer;
             user-select: none;
         }
 
         .light { background-color: var(--light-square); }
         .dark { background-color: var(--dark-square); }
-        .selected { background-color: rgba(46, 164, 79, 0.6) !important; }
+        .selected { background-color: rgba(255, 255, 0, 0.6) !important; }
 
         .btn {
             background-color: #3b3b4f;
             color: var(--text-color);
             border: none;
-            padding: 10px 24px;
-            border-radius: 10px;
+            padding: 12px 28px;
+            border-radius: 12px;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
@@ -129,10 +128,16 @@
 
                     const piece = board[r][c];
                     if (piece) {
-                        squareEl.textContent = pieceSymbols[piece.color === 'w' ? piece.type.toUpperCase() : piece.type];
-                        // Цвет текста для фигур
-                        squareEl.style.color = piece.color === 'w' ? '#fff' : '#000';
-                        squareEl.style.textShadow = piece.color === 'w' ? '0 1px 2px rgba(0,0,0,0.8)' : 'none';
+                        let symbolKey = piece.color === 'w' ? piece.type.toUpperCase() : piece.type;
+                        squareEl.textContent = pieceSymbols[symbolKey];
+                        // Делаем белые фигуры белыми, а черные — темно-темными для контраста
+                        if (piece.color === 'w') {
+                            squareEl.style.color = '#ffffff';
+                            squareEl.style.textShadow = '0 2px 4px rgba(0,0,0,0.9)';
+                        } else {
+                            squareEl.style.color = '#111111';
+                            squareEl.style.textShadow = '0 1px 2px rgba(255,255,255,0.3)';
+                        }
                     }
 
                     squareEl.onclick = () => onSquareClick(squareCoord);
