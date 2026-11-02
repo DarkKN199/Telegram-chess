@@ -3,11 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Шахматы — Telegram Mini App</title>
+    <title>Шахматы Дуэль</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -16,6 +13,9 @@
             --card-bg: #1e1e24;
             --text-color: #ffffff;
             --text-secondary: #98989f;
+            --light-square: #e0d0c0;
+            --dark-square: #b58863;
+            --highlight: rgba(255, 255, 0, 0.4);
         }
 
         body {
@@ -28,14 +28,8 @@
             justify-content: space-between;
             height: 100vh;
             margin: 0;
-            padding: 20px 0;
+            padding: 15px 0;
             box-sizing: border-box;
-            animation: fadeIn 0.5s ease-in-out;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(6px); }
-            to { opacity: 1; transform: translateY(0); }
         }
 
         .header {
@@ -44,48 +38,49 @@
 
         h2 {
             margin: 0 0 5px 0;
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 600;
-            letter-spacing: -0.5px;
         }
 
         #status {
             font-size: 14px;
             color: var(--text-secondary);
-            font-weight: 400;
-        }
-
-        .board-container {
-            background: var(--card-bg);
-            padding: 12px;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
         }
 
         #board {
-            width: 320px;
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            width: 340px;
+            height: 340px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
         }
 
-        .controls {
+        .square {
             display: flex;
-            gap: 12px;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            cursor: pointer;
+            user-select: none;
         }
+
+        .light { background-color: var(--light-square); }
+        .dark { background-color: var(--dark-square); }
+        .selected { background-color: rgba(46, 164, 79, 0.6) !important; }
 
         .btn {
             background-color: #3b3b4f;
             color: var(--text-color);
             border: none;
-            padding: 10px 20px;
+            padding: 10px 24px;
             border-radius: 10px;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.1s;
         }
-
-        .btn:active {
-            transform: scale(0.96);
-        }
+        .btn:active { transform: scale(0.96); }
     </style>
 </head>
 <body>
@@ -95,11 +90,9 @@
         <div id="status">Ход: Белые</div>
     </div>
 
-    <div class="board-container">
-        <div id="board"></div>
-    </div>
+    <div id="board"></div>
 
-    <div class="controls">
+    <div>
         <button class="btn" onclick="resetGame()">Новая игра</button>
     </div>
 
@@ -107,32 +100,74 @@
         let tg = window.Telegram.WebApp;
         tg.expand();
 
-        let board = null;
         let game = new Chess();
-        let statusEl = $('#status');
+        let selectedSquare = null;
 
-        function onDragStart (source, piece, position, orientation) {
-            if (game.game_over()) return false;
-            if (game.turn() === 'w' && piece.search(/^b/) !== -1) return false;
-            if (game.turn() === 'b' && piece.search(/^w/) !== -1) return false;
-        }
+        const pieceSymbols = {
+            'p': '♟', 'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚',
+            'P': '♙', 'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔'
+        };
 
-        function onDrop (source, target) {
-            let move = game.move({
-                from: source,
-                to: target,
-                promotion: 'q'
-            });
+        function renderBoard() {
+            const boardEl = document.getElementById('board');
+            boardEl.innerHTML = '';
+            const board = game.board();
 
-            if (move === null) return 'snapback';
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const squareEl = document.createElement('div');
+                    const isLight = (r + c) % 2 === 0;
+                    squareEl.className = `square ${isLight ? 'light' : 'dark'}`;
+                    
+                    const file = 'abcdefgh'[c];
+                    const rank = 8 - r;
+                    const squareCoord = file + rank;
+
+                    if (selectedSquare === squareCoord) {
+                        squareEl.classList.add('selected');
+                    }
+
+                    const piece = board[r][c];
+                    if (piece) {
+                        squareEl.textContent = pieceSymbols[piece.color === 'w' ? piece.type.toUpperCase() : piece.type];
+                        // Цвет текста для фигур
+                        squareEl.style.color = piece.color === 'w' ? '#fff' : '#000';
+                        squareEl.style.textShadow = piece.color === 'w' ? '0 1px 2px rgba(0,0,0,0.8)' : 'none';
+                    }
+
+                    squareEl.onclick = () => onSquareClick(squareCoord);
+                    boardEl.appendChild(squareEl);
+                }
+            }
             updateStatus();
         }
 
-        function onSnapEnd () {
-            board.position(game.fen());
+        function onSquareClick(square) {
+            if (selectedSquare === null) {
+                const piece = game.get(square);
+                if (piece && piece.color === game.turn()) {
+                    selectedSquare = square;
+                    renderBoard();
+                }
+            } else {
+                const move = game.move({
+                    from: selectedSquare,
+                    to: square,
+                    promotion: 'q'
+                });
+
+                selectedSquare = null;
+                if (move === null) {
+                    const piece = game.get(square);
+                    if (piece && piece.color === game.turn()) {
+                        selectedSquare = square;
+                    }
+                }
+                renderBoard();
+            }
         }
 
-        function updateStatus () {
+        function updateStatus() {
             let status = '';
             let moveColor = game.turn() === 'w' ? 'Белые' : 'Черные';
 
@@ -142,36 +177,18 @@
                 status = 'Ничья!';
             } else {
                 status = `Ход: ${moveColor}`;
-                if (game.in_check()) {
-                    status += ' (Шах!)';
-                }
+                if (game.in_check()) status += ' (Шах!)';
             }
-            statusEl.text(status);
+            document.getElementById('status').textContent = status;
         }
 
         function resetGame() {
             game.reset();
-            board.start();
-            updateStatus();
+            selectedSquare = null;
+            renderBoard();
         }
 
-        let config = {
-            draggable: true,
-            position: 'start',
-            dropOffBoard: 'snapback',
-            // Явно указываем путь к стабильным иконкам фигур
-            pieceTheme: 'https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/img/chesspieces/wikipedia/{piece}.png',
-            onDragStart: onDragStart,
-            onDrop: onDrop,
-            onSnapEnd: onSnapEnd
-        };
-
-        board = Chessboard('board', config);
-        updateStatus();
-
-        $(window).resize(function() {
-            board.resize();
-        });
+        renderBoard();
     </script>
 </body>
 </html>
