@@ -17,6 +17,11 @@
             --dark-square: #739552;
         }
 
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
         body {
             font-family: 'Inter', sans-serif;
             background-color: var(--bg-color);
@@ -25,16 +30,18 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            width: 100vw;
             height: 100vh;
             margin: 0;
             padding: 10px;
-            box-sizing: border-box;
             overflow: hidden;
+            position: fixed;
         }
 
         .header {
             text-align: center;
             margin-bottom: 15px;
+            flex-shrink: 0;
         }
 
         h2 {
@@ -48,33 +55,38 @@
             color: var(--text-secondary);
         }
 
-        /* Жестко фиксируем размер контейнера и доски, запрещая любые изменения */
+        /* Жестко фиксируем контейнер и запрещаем его сжатие */
         .board-container {
             background: var(--card-bg);
             padding: 12px;
             border-radius: 16px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+            flex-shrink: 0;
         }
 
+        /* Неизменяемая сетка шахматной доски */
         #board {
             display: grid;
-            grid-template-columns: repeat(8, 40px);
-            grid-template-rows: repeat(8, 40px);
-            width: 320px;
-            height: 320px;
-            border-radius: 8px;
+            grid-template-columns: repeat(8, 38px);
+            grid-template-rows: repeat(8, 38px);
+            width: 304px;
+            height: 304px;
+            border-radius: 6px;
             overflow: hidden;
+            flex-shrink: 0;
         }
 
         .square {
-            width: 40px;
-            height: 40px;
+            width: 38px;
+            height: 38px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 28px; /* Уменьшили размер фигур, чтобы они идеально стояли в ячейках */
+            font-size: 26px;
             cursor: pointer;
             user-select: none;
+            -webkit-user-select: none;
+            flex-shrink: 0;
         }
 
         .light { background-color: var(--light-square); }
@@ -83,6 +95,7 @@
 
         .controls {
             margin-top: 20px;
+            flex-shrink: 0;
         }
 
         .btn {
@@ -131,7 +144,7 @@
             const board = game.board();
 
             for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 8; c++) {
+                for (let c = 0, len = 8; c < len; c++) {
                     const squareEl = document.createElement('div');
                     const isLight = (r + c) % 2 === 0;
                     squareEl.className = `square ${isLight ? 'light' : 'dark'}`;
