@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Chess Mini App</title>
+    <!-- Подключаем стили и скрипты для шахматной доски и логики -->
+    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1c1c1e;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h2 {
+            margin-bottom: 10px;
+            font-size: 20px;
+        }
+        #board {
+            width: 320px;
+            margin-bottom: 20px;
+        }
+        #status {
+            font-size: 14px;
+            color: #a0a0a5;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Шахматы в Telegram</h2>
+    <div id="board"></div>
+    <div id="status">Ход белых</div>
+
+    <script>
+        // Инициализация Telegram Web App
+        let tg = window.Telegram.WebApp;
+        tg.expand();
+
+        let board = null;
+        let game = new Chess();
+        let statusEl = $('#status');
+
+        function onDragStart (source, piece, position, orientation) {
+            // Запрещаем ходить, если игра окончена
+            if (game.game_over()) return false;
+            // Ходят только белые (для простоты одиночной игры или тренировки)
+            if (piece.search(/^b/) !== -1) return false;
+        }
+
+        function makeRandomMove () {
+            let possibleMoves = game.sever_moves ? game.sever_moves() : game.moves();
+
+            // Простая имитация ответа черных (случайный ход)
+            if (game.game_over()) return;
+
+            let moves = game.moves();
+            if (moves.length === 0) return;
+
+            let randomIdx = Math.floor(Math.random() * moves.length);
+            game.move(moves[randomIdx]);
+            board.position(game.fen());
+            updateStatus();
+        }
+
+        function onDrop (source, target) {
+            // Проверяем правильность хода
+            let move = game.move({
+                from: source,
+                to: target,
+                promotion: 'q' // превращаем пешку в ферзя по умолчанию
+            });
+
+            // Если ход нелегальный, возвращаем фигуру назад
+            if (move === null) return 'snapback';
+
+            updateStatus();
+
+            // Ответный ход компьютера/соперника через полсекунды
+            window.setTimeout(makeRandomMove, 500);
+        }
+
+        function onSnapEnd () {
+            board.position(game.fen());
+        }
+
+        function updateStatus () {
+            let status = '';
+            let moveColor = 'Белые';
+            if (game.turn() === 'b') {
+                moveColor = 'Черные';
+            }
+
+            if (game.in_checkmate()) {
+                status = 'Игра окончена, мат!';
+            } else if (game.in_draw()) {
+                status = 'Ничья!';
+            } else {
+                status = 'Ход: ' + moveColor;
+                if (game.in_check()) {
+                    status += ', шах!';
+                }
+            }
+            statusEl.text(status);
+        }
+
+        let config = {
+            draggable: true,
+            position: 'start',
+            onDragStart: onDragStart,
+            onDrop: onDrop,
+            onSnapEnd: onSnapEnd
+        };
+
+        board = Chessboard('board', config);
+        updateStatus();
+    </script>
+</body>
+</html>
