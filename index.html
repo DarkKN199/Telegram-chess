@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Шахматы Дуэль</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -13,8 +13,11 @@
             --card-bg: #1e1e24;
             --text-color: #ffffff;
             --text-secondary: #98989f;
-            --light-square: #ebecd0;
-            --dark-square: #739552;
+            /* Точная палитра со скриншота */
+            --light-square: #dee3e6;
+            --dark-square: #6496c8;
+            --highlight-move: #8fb53e; /* Салатовый цвет подсветки хода */
+            --highlight-select: #a7cf49;
         }
 
         * {
@@ -40,12 +43,12 @@
 
         .header {
             text-align: center;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
             flex-shrink: 0;
         }
 
         h2 {
-            margin: 0 0 5px 0;
+            margin: 0 0 4px 0;
             font-size: 20px;
             font-weight: 600;
         }
@@ -55,46 +58,72 @@
             color: var(--text-secondary);
         }
 
-        /* Жестко фиксируем контейнер и запрещаем его сжатие */
         .board-container {
             background: var(--card-bg);
-            padding: 12px;
-            border-radius: 16px;
+            padding: 10px;
+            border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
             flex-shrink: 0;
         }
 
-        /* Неизменяемая сетка шахматной доски */
         #board {
             display: grid;
-            grid-template-columns: repeat(8, 38px);
-            grid-template-rows: repeat(8, 38px);
-            width: 304px;
-            height: 304px;
-            border-radius: 6px;
+            grid-template-columns: repeat(8, 40px);
+            grid-template-rows: repeat(8, 40px);
+            width: 320px;
+            height: 320px;
+            border-radius: 4px;
             overflow: hidden;
             flex-shrink: 0;
         }
 
         .square {
-            width: 38px;
-            height: 38px;
+            width: 40px;
+            height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 26px;
+            font-size: 32px;
             cursor: pointer;
             user-select: none;
             -webkit-user-select: none;
+            position: relative;
             flex-shrink: 0;
         }
 
         .light { background-color: var(--light-square); }
         .dark { background-color: var(--dark-square); }
-        .selected { background-color: rgba(255, 255, 0, 0.6) !important; }
+        
+        /* Подсветка ходов как на скриншоте */
+        .selected { background-color: var(--highlight-select) !important; }
+        .last-move { background-color: var(--highlight-move) !important; }
+
+        /* Координаты на доске */
+        .coord-rank {
+            position: absolute;
+            top: 2px;
+            right: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1;
+            pointer-events: none;
+        }
+
+        .coord-file {
+            position: absolute;
+            bottom: 2px;
+            left: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1;
+            pointer-events: none;
+        }
+
+        .light .coord-rank, .light .coord-file { color: var(--dark-square); }
+        .dark .coord-rank, .dark .coord-file { color: var(--light-square); }
 
         .controls {
-            margin-top: 20px;
+            margin-top: 16px;
             flex-shrink: 0;
         }
 
@@ -132,6 +161,7 @@
 
         let game = new Chess();
         let selectedSquare = null;
+        let lastMove = null;
 
         const pieceSymbols = {
             'p': '♟', 'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚',
@@ -144,7 +174,7 @@
             const board = game.board();
 
             for (let r = 0; r < 8; r++) {
-                for (let c = 0, len = 8; c < len; c++) {
+                for (let c = 0; c < 8; c++) {
                     const squareEl = document.createElement('div');
                     const isLight = (r + c) % 2 === 0;
                     squareEl.className = `square ${isLight ? 'light' : 'dark'}`;
@@ -153,22 +183,47 @@
                     const rank = 8 - r;
                     const squareCoord = file + rank;
 
+                    // Подсветка последнего хода (салатовая)
+                    if (lastMove && (lastMove.from === squareCoord || lastMove.to === squareCoord)) {
+                        squareEl.classList.add('last-move');
+                    }
+
+                    // Подсветка выбранной фигуры
                     if (selectedSquare === squareCoord) {
                         squareEl.classList.add('selected');
                     }
 
+                    // Координаты цифр (справа)
+                    if (c === 7) {
+                        const rankEl = document.createElement('span');
+                        rankEl.className = 'coord-rank';
+                        rankEl.textContent = rank;
+                        squareEl.appendChild(rankEl);
+                    }
+
+                    // Координаты букв (снизу)
+                    if (r === 7) {
+                        const fileEl = document.createElement('span');
+                        fileEl.className = 'coord-file';
+                        fileEl.textContent = file;
+                        squareEl.appendChild(fileEl);
+                    }
+
+                    // Фигуры
                     const piece = board[r][c];
                     if (piece) {
-                        let symbolKey = piece.color === 'w' ? piece.type.toUpperCase() : piece.type;
-                        squareEl.textContent = pieceSymbols[symbolKey];
+                        const symbolKey = piece.color === 'w' ? piece.type.toUpperCase() : piece.type;
+                        const pieceSpan = document.createElement('span');
+                        pieceSpan.textContent = pieceSymbols[symbolKey];
                         
                         if (piece.color === 'w') {
-                            squareEl.style.color = '#ffffff';
-                            squareEl.style.textShadow = '0 1px 3px rgba(0,0,0,0.9)';
+                            pieceSpan.style.color = '#ffffff';
+                            pieceSpan.style.textShadow = '0 0 2px #000, 0 1px 3px rgba(0,0,0,0.8)';
                         } else {
-                            squareEl.style.color = '#111111';
-                            squareEl.style.textShadow = '0 1px 1px rgba(255,255,255,0.3)';
+                            pieceSpan.style.color = '#000000';
+                            pieceSpan.style.textShadow = '0 0 1px #fff';
                         }
+                        squareEl.appendChild(pieceSpan);
                     }
 
                     squareEl.onclick = () => onSquareClick(squareCoord);
@@ -192,11 +247,15 @@
                     promotion: 'q'
                 });
 
-                selectedSquare = null;
-                if (move === null) {
+                if (move !== null) {
+                    lastMove = move; // Запоминаем последний ход для салатовой подсветки
+                    selectedSquare = null;
+                } else {
                     const piece = game.get(square);
                     if (piece && piece.color === game.turn()) {
                         selectedSquare = square;
+                    } else {
+                        selectedSquare = null;
                     }
                 }
                 renderBoard();
@@ -221,6 +280,7 @@
         function resetGame() {
             game.reset();
             selectedSquare = null;
+            lastMove = null;
             renderBoard();
         }
 
