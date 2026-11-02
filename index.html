@@ -13,10 +13,10 @@
             --card-bg: #1e1e24;
             --text-color: #ffffff;
             --text-secondary: #98989f;
-            /* Точная палитра со скриншота */
+            /* Точная палитра доски как на скриншоте */
             --light-square: #dee3e6;
             --dark-square: #6496c8;
-            --highlight-move: #8fb53e; /* Салатовый цвет подсветки хода */
+            --highlight-move: #8fb53e;
             --highlight-select: #a7cf49;
         }
 
@@ -61,8 +61,8 @@
         .board-container {
             background: var(--card-bg);
             padding: 10px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+            border-radius: 14px;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.7);
             flex-shrink: 0;
         }
 
@@ -72,7 +72,7 @@
             grid-template-rows: repeat(8, 40px);
             width: 320px;
             height: 320px;
-            border-radius: 4px;
+            border-radius: 6px;
             overflow: hidden;
             flex-shrink: 0;
         }
@@ -83,7 +83,6 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 32px;
             cursor: pointer;
             user-select: none;
             -webkit-user-select: none;
@@ -94,11 +93,10 @@
         .light { background-color: var(--light-square); }
         .dark { background-color: var(--dark-square); }
         
-        /* Подсветка ходов как на скриншоте */
         .selected { background-color: var(--highlight-select) !important; }
         .last-move { background-color: var(--highlight-move) !important; }
 
-        /* Координаты на доске */
+        /* Координаты доски */
         .coord-rank {
             position: absolute;
             top: 2px;
@@ -107,6 +105,7 @@
             font-weight: 700;
             line-height: 1;
             pointer-events: none;
+            z-index: 2;
         }
 
         .coord-file {
@@ -117,10 +116,19 @@
             font-weight: 700;
             line-height: 1;
             pointer-events: none;
+            z-index: 2;
         }
 
         .light .coord-rank, .light .coord-file { color: var(--dark-square); }
         .dark .coord-rank, .dark .coord-file { color: var(--light-square); }
+
+        /* Стили для SVG фигур */
+        .square svg {
+            width: 34px;
+            height: 34px;
+            filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
+            pointer-events: none;
+        }
 
         .controls {
             margin-top: 16px;
@@ -136,6 +144,7 @@
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
+            transition: transform 0.1s;
         }
         .btn:active { transform: scale(0.96); }
     </style>
@@ -163,10 +172,36 @@
         let selectedSquare = null;
         let lastMove = null;
 
-        const pieceSymbols = {
-            'p': '♟', 'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚',
-            'P': '♙', 'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔'
+        // Векторные SVG контуры фигур высокой детализации
+        const svgPaths = {
+            p: "M22.5 9c-2.21 0-4 1.79-4 4 0 .89.32 1.7.85 2.34C17.71 16.57 16 19.06 16 22c0 1.95.7 3.74 1.87 5.14C16.55 28.2 15 30.45 15 33h15c0-2.55-1.55-4.8-2.87-5.86C28.3 25.74 29 23.95 29 22c0-2.94-1.71-5.43-4.35-6.66.53-.64.85-1.45.85-2.34 0-2.21-1.79-4-4-4zM13 36h19v3H13z",
+            r: "M14 11h3v3h-3zM21 11h3v3h-3zM28 11h3v3h-3zM14 15h17v4H14zM16 19h13v2H16zM17 21h11v11H17zM15 32h15v3H15zM13 35h19v3H13z",
+            n: "M22 10c10 1 9 11 5 14 2-2 3-7-2-8 0 7-4 9-7 5 0-4 3-6 3-8-3 1-5 4-6 7-2 0-3 3-2 5 1 2 4 3 6 5-3 0-5-1-7-2 0 4 4 6 10 6 6 0 10-2 10-7 0-5-4-8-10-17z",
+            b: "M9 36c0 0 0-4 4-6 2-1 6-2 9.5-2s7.5 1 9.5 2c4 2 4 6 4 6L9 36zM15 32h15l-7.5-22L15 32zM22.5 6c1.5 0 2.5 1 2.5 2.5s-1 2.5-2.5 2.5-2.5-1-2.5-2.5 1-2.5 2.5-2.5z",
+            q: "M9 36l27 0-3-20-4 8-5.5-12-5.5 12-4-8-3 20zM12.5 11c1 0 2 1 2 2s-1 2-2 2-2-1-2-2 1-2 2-2zM22.5 8c1 0 2 1 2 2s-1 2-2 2-2-1-2-2 1-2 2-2zM32.5 11c1 0 2 1 2 2s-1 2-2 2-2-1-2-2 1-2 2-2z",
+            k: "M22.5 7v4M20.5 9h4M12 36h21l-2-14c0 0-3-2-8.5-2s-8.5 2-8.5 2L12 36zM16 19c0-3 3-5 6.5-5s6.5 2 6.5 5c0 2-3 4-6.5 4s-6.5-2-6.5-4z"
         };
+
+        function createPieceSVG(type, color) {
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svg.setAttribute("viewBox", "0 0 45 45");
+            
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", svgPaths[type.toLowerCase()]);
+            
+            if (color === 'w') {
+                path.setAttribute("fill", "#ffffff");
+                path.setAttribute("stroke", "#1a1a1a");
+                path.setAttribute("stroke-width", "1.5");
+            } else {
+                path.setAttribute("fill", "#1c1c1e");
+                path.setAttribute("stroke", "#000000");
+                path.setAttribute("stroke-width", "1");
+            }
+            
+            svg.appendChild(path);
+            return svg;
+        }
 
         function renderBoard() {
             const boardEl = document.getElementById('board');
@@ -183,17 +218,15 @@
                     const rank = 8 - r;
                     const squareCoord = file + rank;
 
-                    // Подсветка последнего хода (салатовая)
                     if (lastMove && (lastMove.from === squareCoord || lastMove.to === squareCoord)) {
                         squareEl.classList.add('last-move');
                     }
 
-                    // Подсветка выбранной фигуры
                     if (selectedSquare === squareCoord) {
                         squareEl.classList.add('selected');
                     }
 
-                    // Координаты цифр (справа)
+                    // Координаты цифр справа
                     if (c === 7) {
                         const rankEl = document.createElement('span');
                         rankEl.className = 'coord-rank';
@@ -201,7 +234,7 @@
                         squareEl.appendChild(rankEl);
                     }
 
-                    // Координаты букв (снизу)
+                    // Координаты букв снизу
                     if (r === 7) {
                         const fileEl = document.createElement('span');
                         fileEl.className = 'coord-file';
@@ -212,18 +245,8 @@
                     // Фигуры
                     const piece = board[r][c];
                     if (piece) {
-                        const symbolKey = piece.color === 'w' ? piece.type.toUpperCase() : piece.type;
-                        const pieceSpan = document.createElement('span');
-                        pieceSpan.textContent = pieceSymbols[symbolKey];
-                        
-                        if (piece.color === 'w') {
-                            pieceSpan.style.color = '#ffffff';
-                            pieceSpan.style.textShadow = '0 0 2px #000, 0 1px 3px rgba(0,0,0,0.8)';
-                        } else {
-                            pieceSpan.style.color = '#000000';
-                            pieceSpan.style.textShadow = '0 0 1px #fff';
-                        }
-                        squareEl.appendChild(pieceSpan);
+                        const pieceSvg = createPieceSVG(piece.type, piece.color);
+                        squareEl.appendChild(pieceSvg);
                     }
 
                     squareEl.onclick = () => onSquareClick(squareCoord);
@@ -248,7 +271,7 @@
                 });
 
                 if (move !== null) {
-                    lastMove = move; // Запоминаем последний ход для салатовой подсветки
+                    lastMove = move;
                     selectedSquare = null;
                 } else {
                     const piece = game.get(square);
