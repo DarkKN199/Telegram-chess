@@ -88,7 +88,7 @@
         .square.light { background-color: var(--light-square); }
         .square.dark { background-color: var(--dark-square); }
 
-        /* Моментальная подсветка хода без задержек */
+        /* Моментальная подсветка хода */
         .square.highlight::after {
             content: '';
             position: absolute;
@@ -98,7 +98,7 @@
             z-index: 1;
         }
 
-        /* Индикатор возможных ходов (точка или кольцо) */
+        /* Индикатор возможных ходов */
         .square.legal-target::before {
             content: '';
             position: absolute;
@@ -119,16 +119,18 @@
             pointer-events: none;
         }
 
-        /* Плавное перемещение фигуры по координатам */
         .piece {
             width: 95%;
             height: 95%;
-            position: absolute;
+            position: relative;
             z-index: 2;
             filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.25));
             pointer-events: none;
-            transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
-            will-change: transform;
+            transition: transform 0.15s ease;
+        }
+
+        .square:active .piece {
+            transform: scale(0.92);
         }
 
         .square-coord {
@@ -143,7 +145,7 @@
             z-index: 4;
         }
 
-        /* SVG-слой для рисования стрелок (как в Lichess) */
+        /* SVG-слой для стрелок */
         #arrows-svg {
             position: absolute;
             top: 0; left: 0;
@@ -152,7 +154,7 @@
             z-index: 10;
         }
 
-        /* Модальное окно выбора фигуры при превращении пешки */
+        /* Модальное окно превращения пешки */
         #promotion-modal {
             display: none;
             position: absolute;
@@ -221,7 +223,6 @@
             <g id="arrow-lines"></g>
         </svg>
         
-        <!-- Окно превращения пешки -->
         <div id="promotion-modal">
             <div class="promo-box" id="promo-options"></div>
         </div>
@@ -231,7 +232,7 @@
         <button class="btn" onclick="resetGame()">Новая игра</button>
     </div>
 
-    <!-- Скрытые SVG фигуры шаблоны -->
+    <!-- SVG шаблоны фигур -->
     <svg width="0" height="0" style="position:absolute;">
         <defs>
             <g id="wB"><svg viewBox="0 0 81 81" width="45" height="45"><path d="m61.4 71-11.9-9.1 10.6-14.6c0-11-4.9-19.9-11.9-26.3l-1.7-.8-7.9 14.3-1.5-1.6 7.8-14.7 2.7-5.1v-.2c0-3.6-2.9-6.6-6.6-6.6-3.6 0-6.6 2.9-6.6 6.6v.2l2.3 4.4C28 24.1 20.9 34.1 20.9 47.3l10.6 14.6L19.6 71z" style="fill:#fff"/><path d="M45.6 70.7H60l-10.4-9.5h-6.8zm5.2-45.6C54.7 42.1 36 55.8 36 55.8l7.3 4.7h7.4l10.2-13.2-1.5-8.6-3.6-8.3-2.6-4.4zM44.5 8.6c.8 2.4-3.4 4.4-3.4 4.4v5.1l3.3.1 3-4.3-.3-3.4L45 8.6z" style="fill:#cfcecf"/><path d="M65 72.2 50.9 61.6l10.2-14v-.4c0-14.1-7.6-23.1-12.2-27.3l-2.3-2.3 2.1-3.9.1-.3v-.5c0-4.3-3.5-7.9-7.9-7.9-4.3 0-7.8 3.5-7.8 7.9v.5l1.9 3.7c-5.9 4.6-15.5 14.6-15.5 30.1v.4l10.2 14L16 72.2zM22.5 46.9c-.3-14.6 9.3-24 15-28.2l.9-.6-2.7-5.1c0-2.9 2.4-5.3 5.3-5.3s5.3 2.4 5.4 5.3L35.8 34.6v.1l2.2 5.8 9.3-18.8 1.1 1c4.8 4.7 10.4 12.7 10.1 24.1l-9.2 13H31.8zm10.4 15.6H48l9.8 7.3H23.2z"/><path d="M36.2 18h4.9l-2.7 2.1h-3.8"/></svg></g>
@@ -305,11 +306,7 @@
                         const pieceCode = piece.color + piece.type.toUpperCase();
                         const pieceEl = document.createElement('div');
                         pieceEl.className = 'piece';
-                        pieceEl.style.transform = `translate(${col * 100}%, ${row * 100}%)`;
                         pieceEl.innerHTML = `<svg viewBox="0 0 45 45" style="width:100%;height:100%;"><use href="#${pieceCode}" /></svg>`;
-                        // Сохраняем логические координаты для плавной анимации
-                        pieceEl.dataset.file = col;
-                        pieceEl.dataset.rank = row;
                         squareEl.appendChild(pieceEl);
                     }
 
@@ -344,7 +341,6 @@
                 const targetLegal = legalMoves.find(m => m.to === square);
                 
                 if (targetLegal) {
-                    // Проверка на превращение пешки
                     if (targetLegal.piece === 'p' && (square[1] === '8' || square[1] === '1')) {
                         pendingPromotion = { from: selectedSquare, to: square };
                         showPromotionDialog(game.turn());
@@ -373,7 +369,7 @@
                 lastMove = move;
                 selectedSquare = null;
                 legalMoves = [];
-                arrows = []; // Сбрасываем стрелки после хода
+                arrows = [];
                 renderBoard();
             }
         }
@@ -399,7 +395,7 @@
             modal.style.display = 'flex';
         }
 
-        /* Логика рисования стрелок (ПКМ или тач) */
+        /* Логика рисования стрелок */
         const boardContainer = document.getElementById('board-container');
 
         function getSquareFromCoord(clientX, clientY) {
@@ -415,7 +411,7 @@
         boardContainer.addEventListener('contextmenu', e => e.preventDefault());
 
         boardContainer.addEventListener('mousedown', e => {
-            if (e.button === 2) { // Правая кнопка мыши
+            if (e.button === 2) {
                 const sq = getSquareFromCoord(e.clientX, e.clientY);
                 if (sq) drawingArrow = { from: sq, to: sq };
             }
@@ -432,12 +428,11 @@
         window.addEventListener('mouseup', e => {
             if (e.button === 2 && drawingArrow) {
                 if (drawingArrow.from !== drawingArrow.to) {
-                    // Проверяем, есть ли уже такая стрелка, если есть — удаляем, если нет — добавляем
                     const index = arrows.findIndex(a => a.from === drawingArrow.from && a.to === drawingArrow.to);
                     if (index >= 0) arrows.splice(index, 1);
                     else arrows.push(drawingArrow);
                 } else {
-                    arrows = []; // Клик ПКМ без протяжки очищает стрелки
+                    arrows = [];
                 }
                 drawingArrow = null;
                 redrawArrows();
