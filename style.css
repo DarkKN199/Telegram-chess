@@ -11,13 +11,12 @@
     margin: 0;
     padding: 0;
     user-select: none;
-    -webkit-tap-highlight-color: transparent;
 }
 
 body {
     background-color: var(--bg-color);
     color: var(--text-color);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -28,7 +27,6 @@ body {
     overflow: hidden;
 }
 
-/* Верхняя панель */
 .top-panel {
     width: 100%;
     max-width: 420px;
@@ -67,7 +65,6 @@ body {
     white-space: nowrap;
     font-size: 12px;
     color: #b0b0b0;
-    padding-bottom: 2px;
     scrollbar-width: none;
 }
 .moves-ticker::-webkit-scrollbar { display: none; }
@@ -80,9 +77,8 @@ body {
 
 /* Контейнер доски */
 .board-container {
-    position: relative;
     width: 100%;
-    max-width: min(92vw, 92vh, 420px);
+    max-width: min(90vw, 90vh, 400px);
     aspect-ratio: 1;
 }
 
@@ -98,16 +94,16 @@ body {
 }
 
 .square {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     position: relative;
-    width: 100%;
-    height: 100%;
     cursor: pointer;
 }
 
 .square.light { background-color: var(--light-square); }
 .square.dark { background-color: var(--dark-square); }
 
-/* Подсветки */
 .square.last-move {
     background-color: rgba(155, 199, 0, 0.45) !important;
 }
@@ -116,56 +112,46 @@ body {
     background-color: rgba(30, 100, 160, 0.6) !important;
 }
 
-.square.legal-target::before {
+.square.legal-target::after {
     content: '';
-    position: absolute;
-    width: 30%; height: 30%;
+    width: 30%;
+    height: 30%;
     background-color: rgba(0, 0, 0, 0.25);
     border-radius: 50%;
-    top: 35%; left: 35%;
-    pointer-events: none;
-    z-index: 3;
+    position: absolute;
 }
 
-.square.legal-capture::before {
+.square.legal-capture::after {
     content: '';
-    position: absolute;
-    inset: 0;
-    border: 4px solid rgba(0, 0, 0, 0.25);
+    inset: 4px;
+    border: 3px solid rgba(0, 0, 0, 0.3);
     border-radius: 50%;
-    pointer-events: none;
-    z-index: 3;
+    position: absolute;
 }
 
-/* Фигуры */
+/* Фигуры внутри ячеек через обычный флекс */
 .piece {
-    position: absolute;
-    top: 4%;
-    left: 4%;
-    width: 92%;
-    height: 92%;
+    width: 85%;
+    height: 85%;
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
     cursor: grab;
-    z-index: 5;
-    filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.4));
+    filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.3));
 }
-.piece:active { cursor: grabbing; }
 
-/* Координаты на полях */
 .square-coord {
     position: absolute;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: bold;
     pointer-events: none;
-    opacity: 0.7;
+    opacity: 0.6;
+    bottom: 2px;
+    right: 3px;
 }
-.square .square-coord:nth-child(1) { bottom: 2px; right: 3px; }
 
-/* Модальное окно превращения пешки */
 #promotion-modal {
-    position: absolute;
+    position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.6);
     display: none;
@@ -180,23 +166,19 @@ body {
     border-radius: 10px;
     display: flex;
     gap: 10px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.7);
 }
 
 .promo-piece {
-    width: 55px;
-    height: 55px;
+    width: 50px;
+    height: 50px;
     background: #363330;
     border-radius: 8px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
 }
-.promo-piece:hover { background: #45423e; }
 
-/* Нижняя панель */
 .controls {
     width: 100%;
     max-width: 420px;
@@ -215,7 +197,4 @@ body {
     border-radius: 8px;
     cursor: pointer;
     width: 100%;
-    box-shadow: 0 4px 12px rgba(54, 101, 141, 0.4);
-    transition: background 0.2s;
 }
-.btn:active { transform: scale(0.98); }
