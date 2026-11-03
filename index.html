@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Шахматы Дуэль — Lichess Style</title>
+    <title>Шахматы — Lichess Style</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     <style>
@@ -36,7 +36,6 @@
             padding: 4px 0;
         }
 
-        /* Компактная верхняя панель */
         .top-panel {
             width: 100%;
             max-width: 480px;
@@ -73,7 +72,6 @@
             color: #aaa;
         }
 
-        /* Лента ходов */
         .moves-ticker {
             display: flex;
             gap: 4px;
@@ -92,7 +90,6 @@
             color: #d0d0d0;
         }
 
-        /* Контейнер доски по центру */
         .board-container {
             position: relative;
             width: 95vw;
@@ -125,31 +122,16 @@
         .square.light { background-color: var(--light-square); }
         .square.dark { background-color: var(--dark-square); }
 
-        /* Подсветка выполненного хода */
+        /* Стандартная подсветка последнего хода из Lichess */
         .square.last-move-highlight {
-            background-color: rgba(155, 199, 0, 0.45) !important;
+            background-color: rgba(155, 199, 0, 0.41) !important;
         }
 
-        /* Шах и мат */
-        .square.check-flash {
-            animation: checkFlashAnim 0.8s ease-out forwards;
-        }
-        @keyframes checkFlashAnim {
-            0% { background-color: rgba(220, 50, 50, 0.8); }
-            50% { background-color: rgba(40, 40, 40, 0.9); }
-            100% { background-color: transparent; }
-        }
-
-        .square.mate-danger {
-            background-color: rgba(220, 40, 40, 0.35) !important;
-        }
-
-        /* Точки ходов */
         .square.legal-target::before {
             content: '';
             position: absolute;
             width: 30%; height: 30%;
-            background-color: rgba(0, 0, 0, 0.22);
+            background-color: rgba(0, 0, 0, 0.2);
             border-radius: 50%;
             z-index: 3;
             pointer-events: none;
@@ -158,30 +140,25 @@
             content: '';
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
-            border: 4px solid rgba(0, 0, 0, 0.22);
+            border: 4px solid rgba(0, 0, 0, 0.2);
             border-radius: 50%;
             z-index: 3;
             pointer-events: none;
         }
 
-        /* Сверхплавные фигуры на CSS transform (без лагов) */
         .piece {
             position: absolute;
             width: 12.5%;
             height: 12.5%;
             top: 0; left: 0;
             transform: translate(calc(var(--col) * 100%), calc(var(--row) * 100%));
-            transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1);
+            transition: transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1);
             will-change: transform;
             z-index: 5;
             cursor: grab;
             filter: drop-shadow(0px 2px 3px rgba(0, 0, 0, 0.35));
         }
         .piece:active { cursor: grabbing; }
-
-        .piece.selected-piece-anim {
-            transform: translate(calc(var(--col) * 100%), calc(var(--row) * 100%)) scale(0.88);
-        }
 
         .square-coord {
             position: absolute;
@@ -204,7 +181,6 @@
             z-index: 20;
         }
 
-        /* Модальное окно превращения */
         #promotion-modal {
             display: none;
             position: absolute;
@@ -248,7 +224,6 @@
             font-weight: 600;
             cursor: pointer;
             box-shadow: 0 3px 5px rgba(0,0,0,0.3);
-            transition: background 0.15s;
         }
         .btn:active { background-color: #4c4a47; }
     </style>
@@ -271,7 +246,7 @@
         <svg id="arrows-svg">
             <defs>
                 <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="7" refY="3.5" orient="auto">
-                    <polygon points="0 0, 10 3.5, 0 7" fill="rgba(235, 97, 80, 0.85)" />
+                    <polygon points="0 0, 10 3.5, 0 7" fill="rgba(38, 128, 0, 0.8)" />
                 </marker>
             </defs>
             <g id="arrow-lines"></g>
@@ -322,29 +297,14 @@
         const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
         const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
 
-        function findKingSquare(color) {
-            const board = game.board();
-            for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 8; c++) {
-                    const p = board[r][c];
-                    if (p && p.type === 'k' && p.color === color) {
-                        return files[c] + ranks[r];
-                    }
-                }
-            }
-            return null;
-        }
-
-        // Подсчет материала и иконки захваченных фигур как на Lichess
         function updateMaterial() {
             const board = game.board();
             const values = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
-            const initialCounts = { p: 8, n: 2, b: 2, r: 2, q: 1, k: 1 };
+            const initialCounts = { p: 8, n: 2, b: 2, r: 2, q: 1 };
             
             let currentWhite = { p: 0, n: 0, b: 0, r: 0, q: 0 };
             let currentBlack = { p: 0, n: 0, b: 0, r: 0, q: 0 };
-            let whiteScore = 0;
-            let blackScore = 0;
+            let whiteScore = 0, blackScore = 0;
 
             board.forEach(row => {
                 row.forEach(piece => {
@@ -366,19 +326,16 @@
 
             let diffText = '';
             let capturedSymbols = '';
-
             const pieceSymbols = { q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
 
             if (diff > 0) {
                 diffText = `+${diff}`;
-                // Белые съели черных
                 for (let type of ['q', 'r', 'b', 'n', 'p']) {
                     let missingBlack = initialCounts[type] - currentBlack[type];
                     for(let i=0; i<missingBlack; i++) capturedSymbols += pieceSymbols[type];
                 }
             } else if (diff < 0) {
                 diffText = `${diff}`;
-                // Черные съели белых
                 for (let type of ['q', 'r', 'b', 'n', 'p']) {
                     let missingWhite = initialCounts[type] - currentWhite[type];
                     for(let i=0; i<missingWhite; i++) capturedSymbols += pieceSymbols[type];
@@ -405,7 +362,6 @@
             ticker.scrollLeft = ticker.scrollWidth;
         }
 
-        // Инициализация статической сетки доски один раз для максимальной производительности (без лагов)
         function initBoardGrid() {
             const boardElement = document.getElementById('board');
             boardElement.innerHTML = '';
@@ -435,11 +391,7 @@
         function renderBoard() {
             const board = game.board();
             const boardElement = document.getElementById('board');
-            const isCheck = game.in_check();
-            const isMate = game.in_checkmate();
-            const kingSquare = isCheck || isMate ? findKingSquare(game.turn()) : null;
 
-            // Обновляем состояния клеток (подсветки, ходы) без пересоздания DOM
             for (let row = 0; row < 8; row++) {
                 for (let col = 0; col < 8; col++) {
                     const squareCoord = files[col] + ranks[row];
@@ -449,16 +401,6 @@
 
                     if (lastMove && (lastMove.from === squareCoord || lastMove.to === squareCoord)) {
                         squareEl.classList.add('last-move-highlight');
-                    }
-                    if (isCheck && !isMate && kingSquare === squareCoord) {
-                        squareEl.classList.add('check-flash');
-                    }
-                    if (isMate && kingSquare) {
-                        const kCol = files.indexOf(kingSquare[0]);
-                        const kRow = ranks.indexOf(kingSquare[1]);
-                        if (Math.abs(kCol - col) <= 1 && Math.abs(kRow - row) <= 1) {
-                            squareEl.classList.add('mate-danger');
-                        }
                     }
 
                     const legalMoveObj = legalMoves.find(m => m.to === squareCoord);
@@ -472,7 +414,6 @@
                 }
             }
 
-            // Рендер фигур с использованием плавных CSS transform (без лагов)
             const existingPieces = boardElement.querySelectorAll('.piece');
             existingPieces.forEach(p => p.remove());
 
@@ -485,8 +426,6 @@
 
                         const pieceEl = document.createElement('div');
                         pieceEl.className = 'piece';
-                        if (selectedSquare === squareCoord) pieceEl.classList.add('selected-piece-anim');
-                        
                         pieceEl.style.setProperty('--col', col);
                         pieceEl.style.setProperty('--row', row);
                         pieceEl.innerHTML = `<svg viewBox="0 0 45 45" style="width:100%;height:100%; pointer-events:none;"><use href="#${pieceCode}" /></svg>`;
@@ -537,7 +476,6 @@
             }
         }
 
-        // Перетаскивание мышей
         function startDrag(e, square, pieceEl) {
             const piece = game.get(square);
             if (!piece || piece.color !== game.turn()) return;
@@ -549,7 +487,6 @@
             const rect = document.getElementById('board').getBoundingClientRect();
             const shiftX = rect.width / 16;
             const shiftY = rect.height / 16;
-
             pieceEl.style.transition = 'none';
 
             const moveAt = (clientX, clientY) => {
@@ -579,7 +516,6 @@
             const rect = document.getElementById('board').getBoundingClientRect();
             const shiftX = rect.width / 16;
             const shiftY = rect.height / 16;
-
             pieceEl.style.transition = 'none';
 
             const moveAt = (clientX, clientY) => {
@@ -594,8 +530,7 @@
             const onTouchEnd = (ev) => {
                 window.removeEventListener('touchmove', onTouchMove);
                 window.removeEventListener('touchend', onTouchEnd);
-                const touch = ev.changedTouches[0];
-                finishDrag(touch.clientX, touch.clientY, square);
+                finishDrag(ev.changedTouches[0].clientX, ev.changedTouches[0].clientY, square);
             };
 
             window.addEventListener('touchmove', onTouchMove, {passive: false});
@@ -650,7 +585,6 @@
             modal.style.display = 'flex';
         }
 
-        // Система стрелок Lichess
         const boardContainer = document.getElementById('board-container');
 
         function getSquareFromCoord(clientX, clientY) {
@@ -686,8 +620,7 @@
 
         boardContainer.addEventListener('touchstart', e => {
             for (let i = 0; i < e.changedTouches.length; i++) {
-                let t = e.changedTouches[i];
-                activeTouches.set(t.identifier, { x: t.clientX, y: t.clientY });
+                activeTouches.set(e.changedTouches[i].identifier, { x: e.changedTouches[i].clientX, y: e.changedTouches[i].clientY });
             }
             if (activeTouches.size === 2) {
                 e.preventDefault();
@@ -750,8 +683,8 @@
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                 line.setAttribute('x1', x1); line.setAttribute('y1', y1);
                 line.setAttribute('x2', x2); line.setAttribute('y2', y2);
-                line.setAttribute('stroke', 'rgba(235, 97, 80, 0.85)');
-                line.setAttribute('stroke-width', size * 0.18);
+                line.setAttribute('stroke', 'rgba(38, 128, 0, 0.8)');
+                line.setAttribute('stroke-width', size * 0.16);
                 line.setAttribute('stroke-linecap', 'round');
                 line.setAttribute('marker-end', 'url(#arrowhead)');
                 g.appendChild(line);
