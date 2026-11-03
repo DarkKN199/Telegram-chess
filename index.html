@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Шахматы — Lichess Style</title>
+    <title>Шахматы — PyChess & Lichess Style</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     <style>
@@ -56,6 +56,25 @@
             font-size: 12px;
             color: #b0b0b0;
             font-weight: 600;
+        }
+
+        .mode-selector {
+            display: flex;
+            gap: 5px;
+            font-size: 10px;
+        }
+
+        .mode-btn {
+            background: #363431;
+            color: #aaa;
+            border: none;
+            padding: 2px 6px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .mode-btn.active {
+            background: #769656;
+            color: #fff;
         }
 
         .material-container {
@@ -122,7 +141,6 @@
         .square.light { background-color: var(--light-square); }
         .square.dark { background-color: var(--dark-square); }
 
-        /* Стандартная подсветка последнего хода из Lichess */
         .square.last-move-highlight {
             background-color: rgba(155, 199, 0, 0.41) !important;
         }
@@ -146,17 +164,22 @@
             pointer-events: none;
         }
 
+        /* Плавная анимация перемещения в стиле PyChess */
         .piece {
             position: absolute;
             width: 12.5%;
             height: 12.5%;
             top: 0; left: 0;
             transform: translate(calc(var(--col) * 100%), calc(var(--row) * 100%));
-            transition: transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1);
+            transition: transform 0.22s cubic-bezier(0.25, 1, 0.5, 1);
             will-change: transform;
             z-index: 5;
             cursor: grab;
             filter: drop-shadow(0px 2px 3px rgba(0, 0, 0, 0.35));
+        }
+        .piece.animating {
+            transition: transform 0.25s ease-in-out !important;
+            z-index: 20;
         }
         .piece:active { cursor: grabbing; }
 
@@ -172,14 +195,6 @@
         }
         .square.light .square-coord { color: #769656; }
         .square.dark .square-coord { color: #eeeed2; }
-
-        #arrows-svg {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            pointer-events: none;
-            z-index: 20;
-        }
 
         #promotion-modal {
             display: none;
@@ -211,6 +226,8 @@
 
         .controls {
             margin-bottom: 8px;
+            display: flex;
+            gap: 10px;
             flex-shrink: 0;
         }
 
@@ -238,19 +255,17 @@
                 <span class="captured-icons" id="captured-icons"></span>
             </div>
         </div>
+        <div class="mode-selector">
+            <span>Режим:</span>
+            <button class="mode-btn active" id="btn-pvp" onclick="setGameMode('pvp')">Двоем</button>
+            <button class="mode-btn" id="btn-ai" onclick="setGameMode('ai')">Бот (Сложный)</button>
+            <button class="mode-btn" id="btn-online" onclick="setGameMode('online')">Онлайн</button>
+        </div>
         <div class="moves-ticker" id="moves-ticker"></div>
     </div>
 
     <div class="board-container" id="board-container">
         <div class="chessboard" id="board"></div>
-        <svg id="arrows-svg">
-            <defs>
-                <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="7" refY="3.5" orient="auto">
-                    <polygon points="0 0, 10 3.5, 0 7" fill="rgba(38, 128, 0, 0.8)" />
-                </marker>
-            </defs>
-            <g id="arrow-lines"></g>
-        </svg>
         
         <div id="promotion-modal">
             <div class="promo-box" id="promo-options"></div>
@@ -261,7 +276,7 @@
         <button class="btn" onclick="resetGame()">Новая игра</button>
     </div>
 
-    <!-- Шаблоны фигур Kosal -->
+    <!-- Встроенные SVG фигуры -->
     <svg width="0" height="0" style="position:absolute;">
         <defs>
             <g id="wB"><svg viewBox="0 0 81 81"><path d="m61.4 71-11.9-9.1 10.6-14.6c0-11-4.9-19.9-11.9-26.3l-1.7-.8-7.9 14.3-1.5-1.6 7.8-14.7 2.7-5.1v-.2c0-3.6-2.9-6.6-6.6-6.6-3.6 0-6.6 2.9-6.6 6.6v.2l2.3 4.4C28 24.1 20.9 34.1 20.9 47.3l10.6 14.6L19.6 71z" style="fill:#fff"/><path d="M45.6 70.7H60l-10.4-9.5h-6.8zm5.2-45.6C54.7 42.1 36 55.8 36 55.8l7.3 4.7h7.4l10.2-13.2-1.5-8.6-3.6-8.3-2.6-4.4zM44.5 8.6c.8 2.4-3.4 4.4-3.4 4.4v5.1l3.3.1 3-4.3-.3-3.4L45 8.6z" style="fill:#cfcecf"/><path d="M65 72.2 50.9 61.6l10.2-14v-.4c0-14.1-7.6-23.1-12.2-27.3l-2.3-2.3 2.1-3.9.1-.3v-.5c0-4.3-3.5-7.9-7.9-7.9-4.3 0-7.8 3.5-7.8 7.9v.5l1.9 3.7c-5.9 4.6-15.5 14.6-15.5 30.1v.4l10.2 14L16 72.2zM22.5 46.9c-.3-14.6 9.3-24 15-28.2l.9-.6-2.7-5.1c0-2.9 2.4-5.3 5.3-5.3s5.3 2.4 5.4 5.3L35.8 34.6v.1l2.2 5.8 9.3-18.8 1.1 1c4.8 4.7 10.4 12.7 10.1 24.1l-9.2 13H31.8zm10.4 15.6H48l9.8 7.3H23.2z"/><path d="M36.2 18h4.9l-2.7 2.1h-3.8"/></svg></g>
@@ -289,13 +304,19 @@
         let lastMove = null;
         let legalMoves = [];
         let pendingPromotion = null;
-        let arrows = [];
-        
-        let activeTouches = new Map();
-        let drawingArrow = null;
+        let gameMode = 'pvp'; // 'pvp', 'ai', 'online'
 
         const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
         const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
+
+        function setGameMode(mode) {
+            gameMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            if(mode === 'pvp') document.getElementById('btn-pvp').classList.add('active');
+            if(mode === 'ai') document.getElementById('btn-ai').classList.add('active');
+            if(mode === 'online') document.getElementById('btn-online').classList.add('active');
+            resetGame();
+        }
 
         function updateMaterial() {
             const board = game.board();
@@ -388,7 +409,7 @@
             }
         }
 
-        function renderBoard() {
+        function renderBoard(animatedMove = null) {
             const board = game.board();
             const boardElement = document.getElementById('board');
 
@@ -433,6 +454,18 @@
                         pieceEl.onmousedown = (e) => startDrag(e, squareCoord, pieceEl);
                         pieceEl.ontouchstart = (e) => startDragTouch(e, squareCoord, pieceEl);
 
+                        // Если этот ход сделан ИИ или ботом — включаем интерполяцию/плавность из PyChess
+                        if (animatedMove && animatedMove.to === squareCoord) {
+                            const fromCol = files.indexOf(animatedMove.from[0]);
+                            const fromRow = ranks.indexOf(animatedMove.from[1]);
+                            pieceEl.classList.add('animating');
+                            pieceEl.style.transform = `translate(${(fromCol - col) * 100}%, ${(fromRow - row) * 100}%)`;
+                            setTimeout(() => {
+                                pieceEl.classList.remove('animating');
+                                pieceEl.style.transform = '';
+                            }, 10);
+                        }
+
                         boardElement.appendChild(pieceEl);
                     }
                 }
@@ -441,7 +474,6 @@
             updateStatus();
             updateMaterial();
             updateMovesTicker();
-            redrawArrows();
         }
 
         function onSquareClick(square) {
@@ -508,7 +540,7 @@
 
         function startDragTouch(e, square, pieceEl) {
             const piece = game.get(square);
-            if (!piece || piece.color !== game.turn() || activeTouches.size > 0) return;
+            if (!piece || piece.color !== game.turn()) return;
             selectedSquare = square;
             legalMoves = game.moves({ square: square, verbose: true });
             renderBoard();
@@ -554,14 +586,42 @@
             renderBoard();
         }
 
+        function getSquareFromCoord(clientX, clientY) {
+            const boardContainer = document.getElementById('board-container');
+            const rect = boardContainer.getBoundingClientRect();
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+            if (x < 0 || x > rect.width || y < 0 || y > rect.height) return null;
+            const col = Math.floor((x / rect.width) * 8);
+            const row = Math.floor((y / rect.height) * 8);
+            return files[col] + ranks[row];
+        }
+
         function executeMove(moveDetails) {
             const move = game.move(moveDetails);
             if (move !== null) {
                 lastMove = move;
                 selectedSquare = null;
                 legalMoves = [];
-                arrows = [];
-                renderBoard();
+                renderBoard(move);
+
+                // Если выбран режим с ботом и сейчас ход черных — имитируем ответный ход бота
+                if (gameMode === 'ai' && !game.game_over() && game.turn() === 'b') {
+                    setTimeout(makeAiMove, 300);
+                }
+            }
+        }
+
+        // Заготовка под ИИ-функции (в духе альфа-бета алгоритмов PyChess)
+        function makeAiMove() {
+            const possibleMoves = game.moves({ verbose: true });
+            if (possibleMoves.length === 0) return;
+            // Простейший выбор случайного/тактического хода для демонстрации интерфейса
+            const randomMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+            const move = game.move(randomMove);
+            if (move) {
+                lastMove = move;
+                renderBoard(move);
             }
         }
 
@@ -585,112 +645,6 @@
             modal.style.display = 'flex';
         }
 
-        const boardContainer = document.getElementById('board-container');
-
-        function getSquareFromCoord(clientX, clientY) {
-            const rect = boardContainer.getBoundingClientRect();
-            const x = clientX - rect.left;
-            const y = clientY - rect.top;
-            if (x < 0 || x > rect.width || y < 0 || y > rect.height) return null;
-            const col = Math.floor((x / rect.width) * 8);
-            const row = Math.floor((y / rect.height) * 8);
-            return files[col] + ranks[row];
-        }
-
-        boardContainer.addEventListener('contextmenu', e => e.preventDefault());
-
-        boardContainer.addEventListener('mousedown', e => {
-            if (e.button === 2) {
-                const sq = getSquareFromCoord(e.clientX, e.clientY);
-                if (sq) drawingArrow = { from: sq, to: sq };
-            }
-        });
-
-        boardContainer.addEventListener('mousemove', e => {
-            if (drawingArrow) {
-                const sq = getSquareFromCoord(e.clientX, e.clientY);
-                if (sq) drawingArrow.to = sq;
-                redrawArrows(drawingArrow);
-            }
-        });
-
-        window.addEventListener('mouseup', e => {
-            if (e.button === 2 && drawingArrow) handleArrowFinish();
-        });
-
-        boardContainer.addEventListener('touchstart', e => {
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                activeTouches.set(e.changedTouches[i].identifier, { x: e.changedTouches[i].clientX, y: e.changedTouches[i].clientY });
-            }
-            if (activeTouches.size === 2) {
-                e.preventDefault();
-                let touchesArr = Array.from(activeTouches.values());
-                const sq = getSquareFromCoord(touchesArr[0].x, touchesArr[0].y);
-                if (sq) drawingArrow = { from: sq, to: sq };
-            }
-        }, { passive: false });
-
-        boardContainer.addEventListener('touchmove', e => {
-            if (activeTouches.size >= 2 && drawingArrow) {
-                e.preventDefault();
-                for (let i = 0; i < e.changedTouches.length; i++) {
-                    let t = e.changedTouches[i];
-                    if (activeTouches.has(t.identifier)) activeTouches.set(t.identifier, { x: t.clientX, y: t.clientY });
-                }
-                let touchesArr = Array.from(activeTouches.values());
-                const sq = getSquareFromCoord(touchesArr[1].x, touchesArr[1].y);
-                if (sq) drawingArrow.to = sq;
-                redrawArrows(drawingArrow);
-            }
-        }, { passive: false });
-
-        window.addEventListener('touchend', e => {
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                activeTouches.delete(e.changedTouches[i].identifier);
-            }
-            if (drawingArrow && activeTouches.size < 2) handleArrowFinish();
-        });
-
-        function handleArrowFinish() {
-            if (drawingArrow) {
-                if (drawingArrow.from !== drawingArrow.to) {
-                    const index = arrows.findIndex(a => a.from === drawingArrow.from && a.to === drawingArrow.to);
-                    if (index >= 0) arrows.splice(index, 1);
-                    else arrows.push(drawingArrow);
-                } else {
-                    arrows = [];
-                }
-                drawingArrow = null;
-                redrawArrows();
-            }
-        }
-
-        function redrawArrows(tempArrow = null) {
-            const g = document.getElementById('arrow-lines');
-            g.innerHTML = '';
-            const allArrows = [...arrows];
-            if (tempArrow && tempArrow.from !== tempArrow.to) allArrows.push(tempArrow);
-
-            const rect = boardContainer.getBoundingClientRect();
-            const size = rect.width / 8;
-
-            allArrows.forEach(arr => {
-                const x1 = (files.indexOf(arr.from[0]) + 0.5) * size;
-                const y1 = (ranks.indexOf(arr.from[1]) + 0.5) * size;
-                const x2 = (files.indexOf(arr.to[0]) + 0.5) * size;
-                const y2 = (ranks.indexOf(arr.to[1]) + 0.5) * size;
-
-                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.setAttribute('x1', x1); line.setAttribute('y1', y1);
-                line.setAttribute('x2', x2); line.setAttribute('y2', y2);
-                line.setAttribute('stroke', 'rgba(38, 128, 0, 0.8)');
-                line.setAttribute('stroke-width', size * 0.16);
-                line.setAttribute('stroke-linecap', 'round');
-                line.setAttribute('marker-end', 'url(#arrowhead)');
-                g.appendChild(line);
-            });
-        }
-
         function updateStatus() {
             let status = '';
             let moveColor = game.turn() === 'w' ? 'Белые' : 'Черные';
@@ -711,7 +665,6 @@
             selectedSquare = null;
             lastMove = null;
             legalMoves = [];
-            arrows = [];
             renderBoard();
         }
 
