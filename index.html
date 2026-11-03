@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Шахматы Дуэль</title>
+    <title>Шахматы Дуэль — Lichess Style</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     <style>
         :root {
-            --light-square: #e3eff7; 
-            --dark-square: #558bb2;
+            --light-square: #eae9d2; 
+            --dark-square: #3a8043;
             --text-color: #ffffff;
-            --text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
-            --bg-color: #1e1e1e;
+            --bg-color: #161512;
+            --panel-bg: #262421;
         }
 
         * {
@@ -25,11 +25,11 @@
         body {
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: flex-start;
             align-items: center;
             min-height: 100vh;
             background-color: var(--bg-color);
-            font-family: 'Arial', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             overflow: hidden;
             position: fixed;
             width: 100vw;
@@ -38,32 +38,53 @@
             -webkit-user-select: none;
         }
 
-        .header {
-            text-align: center;
-            margin-bottom: 8px;
+        /* Верхняя панель ходов и информации */
+        .top-panel {
+            width: 100%;
+            max-width: 500px;
+            background: var(--panel-bg);
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            border-bottom: 2px solid #111;
             flex-shrink: 0;
         }
 
-        h2 {
-            margin: 0 0 2px 0;
-            font-size: 18px;
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            color: #bababa;
             font-weight: 600;
-            color: var(--text-color);
-            text-shadow: var(--text-shadow);
         }
 
-        #status {
-            font-size: 13px;
-            color: #b0b0b0;
+        /* Лента ходов как на Lichess */
+        .moves-ticker {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            white-space: nowrap;
+            padding: 4px 0;
+            font-size: 12px;
+            color: #999;
+            scrollbar-width: none;
+        }
+        .moves-ticker::-webkit-scrollbar { display: none; }
+        .move-item {
+            background: #363431;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #ccc;
         }
 
         .board-container {
             position: relative;
             width: 100vw;
-            max-width: 100vw;
+            max-width: 100vh;
             aspect-ratio: 1 / 1;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
-            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.05) 100%);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
             flex-shrink: 0;
         }
 
@@ -89,45 +110,32 @@
         .square.light { background-color: var(--light-square); }
         .square.dark { background-color: var(--dark-square); }
 
-        /* Анимация выбора фигуры: из точки расходится световой круг */
-        .square.highlight::after {
-            content: '';
-            position: absolute;
-            top: 50%; left: 50%;
-            width: 0; height: 0;
-            background: radial-gradient(circle, rgba(255, 255, 100, 0.8) 0%, rgba(205, 210, 60, 0.4) 70%, transparent 100%);
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            animation: lightExpand 0.35s ease-out forwards;
-            pointer-events: none;
-            z-index: 1;
+        /* Подсветка выполненного хода */
+        .square.last-move-highlight {
+            background-color: rgba(155, 199, 0, 0.55) !important;
         }
 
-        @keyframes lightExpand {
-            0% { width: 0; height: 0; opacity: 1; }
-            100% { width: 100%; height: 100%; opacity: 0.8; }
+        /* Анимация Шаха */
+        .square.check-flash {
+            animation: checkFlashAnim 1s ease-out forwards;
+        }
+        @keyframes checkFlashAnim {
+            0% { background-color: rgba(220, 50, 50, 0.8); }
+            50% { background-color: rgba(30, 30, 30, 0.9); }
+            100% { background-color: transparent; }
         }
 
-        /* Анимация Шаха: пульсирующий красный фон у короля */
-        .square.check-square {
-            animation: pulseCheck 1s infinite alternate;
-        }
-        @keyframes pulseCheck {
-            from { background-color: rgba(220, 50, 50, 0.4); }
-            to { background-color: rgba(255, 0, 0, 0.8); }
-        }
-
-        /* Анимация Мата: красные клетки вокруг */
+        /* Анимация Мата */
         .square.mate-danger {
-            background-color: rgba(230, 40, 40, 0.7) !important;
+            background-color: rgba(220, 40, 40, 0.4) !important;
         }
 
-        /* Обычная точка хода */
+        /* Точки для ходов */
         .square.legal-target::before {
             content: '';
             position: absolute;
-            width: 30%; height: 30%;
-            background-color: rgba(0, 0, 0, 0.25);
+            width: 32%; height: 32%;
+            background-color: rgba(0, 0, 0, 0.2);
             border-radius: 50%;
             z-index: 3;
             pointer-events: none;
@@ -136,67 +144,61 @@
             content: '';
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
-            border: 4px solid rgba(0, 0, 0, 0.25);
+            border: 4px solid rgba(0, 0, 0, 0.2);
             border-radius: 50%;
             z-index: 3;
             pointer-events: none;
         }
 
-        /* Пончик для единственной фигуры при шахе (под фигуркой, z-index: 1) */
-        .square.only-move-hint::after {
-            content: '';
-            position: absolute;
-            width: 75%; height: 75%;
-            border: 5px solid rgba(20, 20, 20, 0.75);
-            border-radius: 50%;
-            z-index: 1;
-            pointer-events: none;
-            animation: pulseDonut 1.2s infinite ease-in-out;
-        }
-        @keyframes pulseDonut {
-            0% { transform: scale(0.95); opacity: 0.8; }
-            50% { transform: scale(1.05); opacity: 1; }
-            100% { transform: scale(0.95); opacity: 0.8; }
-        }
-
-        /* Плавное скольжение фигур */
+        /* Фигуры и анимация перемещения */
         .piece {
             position: absolute;
             width: 12.5%;
             height: 12.5%;
-            z-index: 2;
-            filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.25));
-            pointer-events: none;
-            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-            will-change: transform;
+            z-index: 5;
+            cursor: grab;
+            filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.3));
+            transition: transform 0.2s ease;
+            will-change: transform, left, top;
+        }
+        .piece:active { cursor: grabbing; }
+
+        .piece.sliding {
+            transition: left 0.35s cubic-bezier(0.25, 1, 0.5, 1), top 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .piece.selected-piece-anim {
+            transform: scale(0.88);
         }
 
         .square-coord {
             position: absolute;
             bottom: 2px;
             right: 3px;
-            font-size: 10px;
+            font-size: 9px;
             font-weight: bold;
-            color: #000000;
-            opacity: 0.35;
             pointer-events: none;
-            z-index: 4;
+            z-index: 2;
+            opacity: 0.5;
         }
+        .square.light .square-coord { color: #3a8043; }
+        .square.dark .square-coord { color: #eae9d2; }
 
         #arrows-svg {
             position: absolute;
             top: 0; left: 0;
             width: 100%; height: 100%;
             pointer-events: none;
-            z-index: 10;
+            z-index: 20;
         }
 
+        /* Окно превращения пешки */
         #promotion-modal {
             display: none;
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.6);
-            z-index: 50;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 100;
             justify-content: center;
             align-items: center;
         }
@@ -206,7 +208,7 @@
             border-radius: 12px;
             display: flex;
             gap: 12px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+            box-shadow: 0 5px 25px rgba(0,0,0,0.8);
         }
         .promo-piece {
             width: 55px; height: 55px;
@@ -216,35 +218,37 @@
             justify-content: center;
             align-items: center;
             cursor: pointer;
-            transition: background 0.15s;
         }
-        .promo-piece:active { background: #52526e; }
         .promo-piece svg { width: 45px; height: 45px; }
 
         .controls {
-            margin-top: 14px;
+            margin-top: 10px;
             flex-shrink: 0;
         }
 
         .btn {
-            background-color: #3b3b4f;
+            background-color: #363431;
             color: var(--text-color);
             border: none;
-            padding: 10px 24px;
-            border-radius: 10px;
+            padding: 8px 20px;
+            border-radius: 6px;
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.15s ease, background-color 0.15s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: background 0.15s;
         }
-        .btn:active { transform: scale(0.94); background-color: #4c4c66; }
+        .btn:active { background-color: #4c4a47; }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <h2>Шахматы Дуэль</h2>
-        <div id="status">Ход: Белые</div>
+    <div class="top-panel">
+        <div class="status-bar">
+            <span id="status">Ход: Белые</span>
+            <span id="material-diff"></span>
+        </div>
+        <div class="moves-ticker" id="moves-ticker"></div>
     </div>
 
     <div class="board-container" id="board-container">
@@ -267,7 +271,7 @@
         <button class="btn" onclick="resetGame()">Новая игра</button>
     </div>
 
-    <!-- Шаблоны фигур -->
+    <!-- Шаблоны фигур Kosal -->
     <svg width="0" height="0" style="position:absolute;">
         <defs>
             <g id="wB"><svg viewBox="0 0 81 81"><path d="m61.4 71-11.9-9.1 10.6-14.6c0-11-4.9-19.9-11.9-26.3l-1.7-.8-7.9 14.3-1.5-1.6 7.8-14.7 2.7-5.1v-.2c0-3.6-2.9-6.6-6.6-6.6-3.6 0-6.6 2.9-6.6 6.6v.2l2.3 4.4C28 24.1 20.9 34.1 20.9 47.3l10.6 14.6L19.6 71z" style="fill:#fff"/><path d="M45.6 70.7H60l-10.4-9.5h-6.8zm5.2-45.6C54.7 42.1 36 55.8 36 55.8l7.3 4.7h7.4l10.2-13.2-1.5-8.6-3.6-8.3-2.6-4.4zM44.5 8.6c.8 2.4-3.4 4.4-3.4 4.4v5.1l3.3.1 3-4.3-.3-3.4L45 8.6z" style="fill:#cfcecf"/><path d="M65 72.2 50.9 61.6l10.2-14v-.4c0-14.1-7.6-23.1-12.2-27.3l-2.3-2.3 2.1-3.9.1-.3v-.5c0-4.3-3.5-7.9-7.9-7.9-4.3 0-7.8 3.5-7.8 7.9v.5l1.9 3.7c-5.9 4.6-15.5 14.6-15.5 30.1v.4l10.2 14L16 72.2zM22.5 46.9c-.3-14.6 9.3-24 15-28.2l.9-.6-2.7-5.1c0-2.9 2.4-5.3 5.3-5.3s5.3 2.4 5.4 5.3L35.8 34.6v.1l2.2 5.8 9.3-18.8 1.1 1c4.8 4.7 10.4 12.7 10.1 24.1l-9.2 13H31.8zm10.4 15.6H48l9.8 7.3H23.2z"/><path d="M36.2 18h4.9l-2.7 2.1h-3.8"/></svg></g>
@@ -300,10 +304,13 @@
         let activeTouches = new Map();
         let drawingArrow = null;
 
+        // Перетаскивание (Drag & Drop)
+        let draggedPiece = null;
+        let dragSourceSquare = null;
+
         const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
         const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
 
-        // Поиск позиции короля для подсветки шаха/мата
         function findKingSquare(color) {
             const board = game.board();
             for (let r = 0; r < 8; r++) {
@@ -317,26 +324,55 @@
             return null;
         }
 
-        // Функция анализа единственный ли это возможный ход при шахе
-        function getOnlyMoveIfSingleCheck() {
-            if (!game.in_check()) return null;
-            
-            const allMoves = game.moves({ verbose: true });
-            if (allMoves.length === 1) {
-                return allMoves[0]; // Возвращает единственный ход {from, to, ...}
+        // Подсчет материала
+        function updateMaterial() {
+            const board = game.board();
+            const values = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+            let whiteScore = 0;
+            let blackScore = 0;
+
+            board.forEach(row => {
+                row.forEach(piece => {
+                    if (piece) {
+                        if (piece.color === 'w') whiteScore += values[piece.type];
+                        else blackScore += values[piece.type];
+                    }
+                });
+            });
+
+            const diff = whiteScore - blackScore;
+            const diffEl = document.getElementById('material-diff');
+            if (diff > 0) diffEl.textContent = `+${diff} (Белые впереди)`;
+            else if (diff < 0) diffEl.textContent = `${diff} (Черные впереди)`;
+            else diffEl.textContent = 'Равно';
+        }
+
+        // Обновление ленты ходов
+        function updateMovesTicker() {
+            const history = game.history();
+            const ticker = document.getElementById('moves-ticker');
+            ticker.innerHTML = '';
+            for (let i = 0; i < history.length; i += 2) {
+                const moveNum = (i / 2) + 1;
+                const whiteMove = history[i];
+                const blackMove = history[i+1] || '';
+                const item = document.createElement('div');
+                item.className = 'move-item';
+                item.textContent = `${moveNum}. ${whiteMove} ${blackMove}`;
+                ticker.appendChild(item);
             }
-            return null;
+            ticker.scrollLeft = ticker.scrollWidth;
         }
 
         function renderBoard() {
             const boardElement = document.getElementById('board');
+            // Сохраняем клетки, пересоздаем если нужно
             boardElement.innerHTML = '';
             const board = game.board();
 
             const isCheck = game.in_check();
             const isMate = game.in_checkmate();
-            const kingSquare = isCheck || isMate ? findKingSystemSquare(game.turn()) : null;
-            const singleMove = getOnlyMoveIfSingleCheck();
+            const kingSquare = isCheck || isMate ? findKingSquare(game.turn()) : null;
 
             for (let row = 0; row < 8; row++) {
                 for (let col = 0; col < 8; col++) {
@@ -351,44 +387,26 @@
                     squareEl.className = `square ${squareClass}`;
                     squareEl.dataset.square = squareCoord;
 
-                    // Последний ход
+                    // Подсветка последнего хода
                     if (lastMove && (lastMove.from === squareCoord || lastMove.to === squareCoord)) {
-                        squareEl.classList.add('highlight');
-                    }
-                    if (selectedSquare === squareCoord) {
-                        squareEl.classList.add('highlight');
+                        squareEl.classList.add('last-move-highlight');
                     }
 
-                    // Подсветка шаха / мата короля
-                    if (isMate && kingSquare === squareCoord) {
-                        squareEl.classList.add('check-square');
-                    } else if (isCheck && kingSquare === squareCoord) {
-                        squareEl.classList.add('check-square');
+                    // Шах / Мат
+                    if (isCheck && !isMate && kingSquare === squareCoord) {
+                        squareEl.classList.add('check-flash');
                     }
-
-                    // Если мат — все свободные клетки вокруг короля красные
                     if (isMate && kingSquare) {
                         const kCol = files.indexOf(kingSquare[0]);
                         const kRow = ranks.indexOf(kingSquare[1]);
                         if (Math.abs(kCol - col) <= 1 && Math.abs(kRow - row) <= 1) {
-                            if (!board[row][col] || board[row][col].type !== 'k') {
-                                squareEl.classList.add('mate-danger');
-                            }
+                            squareEl.classList.add('mate-danger');
                         }
                     }
 
-                    // Единственный возможный ход при шахе: пончик на фигуре
-                    if (singleMove && singleMove.from === squareCoord) {
-                        squareEl.classList.add('only-move-hint');
-                    }
-                    // Точка на поле куда нужно ходить при единственном ответе
-                    if (singleMove && singleMove.to === squareCoord) {
-                        squareEl.classList.add('legal-target');
-                    }
-
-                    // Обычные доступные ходы выбранной фигуры
+                    // Подсветка доступных ходов
                     const legalMoveObj = legalMoves.find(m => m.to === squareCoord);
-                    if (legalMoveObj && !singleMove) {
+                    if (legalMoveObj) {
                         if (board[row][col]) {
                             squareEl.classList.add('legal-capture');
                         } else {
@@ -412,55 +430,43 @@
                 }
             }
 
-            // Рендер фигур отдельным слоем для плавной анимации
+            // Рендер фигур отдельным слоем для плавного drag & drop и скольжения
             for (let row = 0; row < 8; row++) {
                 for (let col = 0; col < 8; col++) {
                     const piece = board[row][col];
                     if (piece) {
+                        const file = files[col];
+                        const rank = ranks[row];
+                        const squareCoord = file + rank;
                         const pieceCode = piece.color + piece.type.toUpperCase();
+
                         const pieceEl = document.createElement('div');
                         pieceEl.className = 'piece';
+                        if (selectedSquare === squareCoord) {
+                            pieceEl.classList.add('selected-piece-anim');
+                        }
                         pieceEl.style.left = (col * 12.5) + '%';
                         pieceEl.style.top = (row * 12.5) + '%';
-                        pieceEl.innerHTML = `<svg viewBox="0 0 45 45" style="width:100%;height:100%;"><use href="#${pieceCode}" /></svg>`;
+                        pieceEl.innerHTML = `<svg viewBox="0 0 45 45" style="width:100%;height:100%; pointer-events:none;"><use href="#${pieceCode}" /></svg>`;
+                        
+                        // Обработчики для перетаскивания (Drag & Drop)
+                        pieceEl.dataset.square = squareCoord;
+                        pieceEl.onmousedown = (e) => startDrag(e, squareCoord, pieceEl);
+                        pieceEl.ontouchstart = (e) => startDragTouch(e, squareCoord, pieceEl);
+
                         boardElement.appendChild(pieceEl);
                     }
                 }
             }
 
             updateStatus();
+            updateMaterial();
+            updateMovesTicker();
             redrawArrows();
         }
 
-        function findKingSystemSquare(color) {
-            const board = game.board();
-            for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 8; c++) {
-                    const p = board[r][c];
-                    if (p && p.type === 'k' && p.color === color) {
-                        return files[c] + ranks[r];
-                    }
-                }
-            }
-            return null;
-        }
-
+        // Логика кликов
         function onSquareClick(square) {
-            const singleMove = getOnlyMoveIfSingleCheck();
-            
-            // Если есть единственный ход и игрок кликнул на нужную фигуру или цель — сразу ходим!
-            if (singleMove) {
-                if (square === singleMove.from) {
-                    selectedSquare = square;
-                    legalMoves = [singleMove];
-                    renderBoard();
-                    return;
-                } else if (selectedSquare === singleMove.from && square === singleMove.to) {
-                    executeMove(singleMove);
-                    return;
-                }
-            }
-
             if (selectedSquare === null) {
                 const piece = game.get(square);
                 if (piece && piece.color === game.turn()) {
@@ -470,7 +476,6 @@
                 }
             } else {
                 const targetLegal = legalMoves.find(m => m.to === square);
-                
                 if (targetLegal) {
                     if (targetLegal.piece === 'p' && (square[1] === '8' || square[1] === '1')) {
                         pendingPromotion = { from: selectedSquare, to: square };
@@ -484,7 +489,6 @@
                         selectedSquare = square;
                         legalMoves = game.moves({ square: square, verbose: true });
                         renderBoard();
-                        return;
                     } else {
                         selectedSquare = null;
                         legalMoves = [];
@@ -492,6 +496,94 @@
                     }
                 }
             }
+        }
+
+        // Перетаскивание мышкой
+        function startDrag(e, square, pieceEl) {
+            const piece = game.get(square);
+            if (!piece || piece.color !== game.turn()) return;
+            e.preventDefault();
+            selectedSquare = square;
+            legalMoves = game.moves({ square: square, verbose: true });
+            renderBoard();
+
+            draggedPiece = pieceEl;
+            dragSourceSquare = square;
+            pieceEl.style.zIndex = 100;
+
+            const moveAt = (clientX, clientY) => {
+                const rect = document.getElementById('board').getBoundingClientRect();
+                let x = clientX - rect.left - rect.width / 16;
+                let y = clientY - rect.top - rect.height / 16;
+                pieceEl.style.left = `${Math.max(0, Math.min(rect.width - pieceEl.offsetWidth, x))}px`;
+                pieceEl.style.top = `${Math.max(0, Math.min(rect.height - pieceEl.offsetHeight, y))}px`;
+                pieceEl.style.position = 'absolute';
+            };
+
+            const onMouseMove = (ev) => moveAt(ev.clientX, ev.clientY);
+            const onMouseUp = (ev) => {
+                window.removeEventListener('mousemove', onMouseMove);
+                window.removeEventListener('mouseup', onMouseUp);
+                finishDrag(ev.clientX, ev.clientY);
+            };
+
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+        }
+
+        // Перетаскивание пальцем (Touch)
+        function startDragTouch(e, square, pieceEl) {
+            const piece = game.get(square);
+            if (!piece || piece.color !== game.turn() || activeTouches.size > 0) return;
+            selectedSquare = square;
+            legalMoves = game.moves({ square: square, verbose: true });
+            renderBoard();
+
+            draggedPiece = pieceEl;
+            dragSourceSquare = square;
+            pieceEl.style.zIndex = 100;
+
+            const t = e.touches[0];
+            const moveAt = (clientX, clientY) => {
+                const rect = document.getElementById('board').getBoundingClientRect();
+                let x = clientX - rect.left - rect.width / 16;
+                let y = clientY - rect.top - rect.height / 16;
+                pieceEl.style.left = `${Math.max(0, Math.min(rect.width - pieceEl.offsetWidth, x))}px`;
+                pieceEl.style.top = `${Math.max(0, Math.min(rect.height - pieceEl.offsetHeight, y))}px`;
+                pieceEl.style.position = 'absolute';
+            };
+
+            const onTouchMove = (ev) => {
+                if (ev.touches.length > 0) moveAt(ev.touches[0].clientX, ev.touches[0].clientY);
+            };
+            const onTouchEnd = (ev) => {
+                window.removeEventListener('touchmove', onTouchMove);
+                window.removeEventListener('touchend', onTouchEnd);
+                const touch = ev.changedTouches[0];
+                finishDrag(touch.clientX, touch.clientY);
+            };
+
+            window.addEventListener('touchmove', onTouchMove, {passive: false});
+            window.addEventListener('touchend', onTouchEnd);
+        }
+
+        function finishDrag(clientX, clientY) {
+            const targetSquare = getSquareFromCoord(clientX, clientY);
+            if (targetSquare && targetSquare !== dragSourceSquare) {
+                const targetLegal = legalMoves.find(m => m.to === targetSquare);
+                if (targetLegal) {
+                    if (targetLegal.piece === 'p' && (targetSquare[1] === '8' || targetSquare[1] === '1')) {
+                        pendingPromotion = { from: dragSourceSquare, to: targetSquare };
+                        showPromotionDialog(game.turn());
+                        draggedPiece = null;
+                        return;
+                    }
+                    executeMove({ from: dragSourceSquare, to: targetSquare, promotion: 'q' });
+                }
+            }
+            draggedPiece = null;
+            dragSourceSquare = null;
+            renderBoard();
         }
 
         function executeMove(moveDetails) {
@@ -526,7 +618,7 @@
             modal.style.display = 'flex';
         }
 
-        /* Логика стрелок */
+        /* Система стрелок Lichess (удержание 1 пальца + ведение 2-м или ПКМ) */
         const boardContainer = document.getElementById('board-container');
 
         function getSquareFromCoord(clientX, clientY) {
@@ -557,9 +649,7 @@
         });
 
         window.addEventListener('mouseup', e => {
-            if (e.button === 2 && drawingArrow) {
-                handleArrowFinish();
-            }
+            if (e.button === 2 && drawingArrow) handleArrowFinish();
         });
 
         boardContainer.addEventListener('touchstart', e => {
@@ -567,7 +657,6 @@
                 let t = e.changedTouches[i];
                 activeTouches.set(t.identifier, { x: t.clientX, y: t.clientY });
             }
-
             if (activeTouches.size === 2) {
                 e.preventDefault();
                 let touchesArr = Array.from(activeTouches.values());
@@ -581,9 +670,7 @@
                 e.preventDefault();
                 for (let i = 0; i < e.changedTouches.length; i++) {
                     let t = e.changedTouches[i];
-                    if (activeTouches.has(t.identifier)) {
-                        activeTouches.set(t.identifier, { x: t.clientX, y: t.clientY });
-                    }
+                    if (activeTouches.has(t.identifier)) activeTouches.set(t.identifier, { x: t.clientX, y: t.clientY });
                 }
                 let touchesArr = Array.from(activeTouches.values());
                 const sq = getSquareFromCoord(touchesArr[1].x, touchesArr[1].y);
@@ -596,9 +683,7 @@
             for (let i = 0; i < e.changedTouches.length; i++) {
                 activeTouches.delete(e.changedTouches[i].identifier);
             }
-            if (drawingArrow && activeTouches.size < 2) {
-                handleArrowFinish();
-            }
+            if (drawingArrow && activeTouches.size < 2) handleArrowFinish();
         });
 
         function handleArrowFinish() {
@@ -631,12 +716,10 @@
                 const y2 = (ranks.indexOf(arr.to[1]) + 0.5) * size;
 
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.setAttribute('x1', x1);
-                line.setAttribute('y1', y1);
-                line.setAttribute('x2', x2);
-                line.setAttribute('y2', y2);
+                line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+                line.setAttribute('x2', x2); line.setAttribute('y2', y2);
                 line.setAttribute('stroke', 'rgba(235, 97, 80, 0.85)');
-                line.setAttribute('stroke-width', size * 0.22);
+                line.setAttribute('stroke-width', size * 0.2);
                 line.setAttribute('stroke-linecap', 'round');
                 line.setAttribute('marker-end', 'url(#arrowhead)');
                 g.appendChild(line);
