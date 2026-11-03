@@ -1,78 +1,57 @@
 /* ==========================================================
-   МОДУЛЬ ЛОГИКИ И ПРАВИЛ ШАХМАТ (engine.js)
+   МОДУЛЬ ПРАВИЛ И ДВИЖКА (engine.js)
    ========================================================== */
 
-if (typeof Chess === 'undefined') {
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js';
-    script.async = false;
-    document.head.appendChild(script);
-}
-
+// Создаем глобальный объект движка заранее
 const ChessEngine = (() => {
-    let chess = null;
+    let chessInstance = null;
+    let isInitialized = false;
 
-    function init() {
-        chess = new Chess();
+    // Функция загрузки скрипта chess.js с проверкой
+    function loadChessLibrary(callback) {
+        if (typeof Chess !== 'undefined') {
+            chessInstance = new Chess();
+            isInitialized = true;
+            if (callback) callback();
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/chess.js/1.0.0-beta.6/chess.min.js';
+        script.async = true;
+        script.onload = () => {
+            try {
+                chessInstance = new Chess();
+                isInitialized = true;
+                console.log('Chess.js успешно загружен');
+                if (callback) callback();
+            } catch (e) {
+                console.error('Ошибка инициализации Chess:', e);
+            }
+        };
+        document.head.appendChild(script);
     }
 
     return {
+        init: (callback) => {
+            if (isInitialized && chessInstance) {
+                if (callback) callback();
+                return;
+            }
+            loadChessLibrary(callback);
+        },
         reset: () => {
-            if (!chess) init();
-            chess.reset();
+            if (chessInstance) chessInstance.reset();
         },
-
-        board: () => {
-            if (!chess) init();
-            return chess.board();
-        },
-
-        turn: () => {
-            if (!chess) init();
-            return chess.turn();
-        },
-
-        get: (square) => {
-            if (!chess) init();
-            return chess.get(square);
-        },
-
-        moves: (options) => {
-            if (!chess) init();
-            return chess.moves(options);
-        },
-
-        move: (moveDetails) => {
-            if (!chess) init();
-            // moveDetails должен содержать { from, to, promotion } если это превращение
-            return chess.move(moveDetails);
-        },
-
-        history: () => {
-            if (!chess) init();
-            return chess.history();
-        },
-
-        // Проверки состояний и завершения игры
-        inCheck: () => chess ? chess.in_check() : false,
-        inCheckmate: () => chess ? chess.in_checkmate() : false,
-        
-        // Пат (нет легальных ходов, но шах отсутствует)
-        inStalemate: () => chess ? chess.in_stalemate() : false,
-        
-        // Ничья по правилу 50 ходов (отсутствие взятий и ходов пешками в течение 50 ходов)
-        inThreefoldRepetition: () => chess ? chess.in_threefold_repetition() : false,
-        insufficientMaterial: () => chess ? chess.insufficient_material() : false,
-        
-        // Общая проверка на ничью (включает пат, 50 ходов, недостаток материала и т.д.)
-        inDraw: () => {
-            if (!chess) return false;
-            // chess.in_draw() автоматически проверяет пат, 50 ходов, троекратное повторение и недостаток фигур
-            return chess.in_draw();
-        },
-
-        isGameOver: () => chess ? chess.game_over() : false
+        board: () => chessInstance ? chessInstance.board() : Array(8).fill(Array(8).fill(null)),
+        turn: () => chessInstance ? chessInstance.turn() : 'w',
+        moves: (opts) => chessInstance ? chessInstance.moves(opts) : [],
+        get: (square) => chessInstance ? chessInstance.get(square) : null,
+        move: (moveObj) => chessInstance ? chessInstance.move(moveObj) : null,
+        history: () => chessInstance ? chessInstance.history() : [],
+        inCheck: () => chessInstance ? chessInstance.in_check() : false,
+        inCheckmate: () => chessInstance ? chessInstance.in_checkmate() : false,
+        inStalemate: () => chessInstance ? chessInstance.in_stalemate() : false,
+        inDraw: () => chessInstance ? chessInstance.in_draw() : false,
     };
 })();
-
-ChessEngine.reset();
