@@ -24,7 +24,8 @@ body {
     height: 100vh;
     height: 100dvh;
     padding: 10px;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .top-panel {
@@ -36,6 +37,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    flex-shrink: 0;
 }
 
 .status-bar {
@@ -44,6 +46,15 @@ body {
     align-items: center;
     font-size: 15px;
     font-weight: 600;
+    gap: 8px;
+}
+
+#status {
+    flex-shrink: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .material-container {
@@ -51,11 +62,22 @@ body {
     gap: 6px;
     align-items: center;
     font-size: 14px;
+    flex-shrink: 0;
+}
+
+#material-diff {
+    color: #e0e0e0;
+    font-size: 12px;
+    font-weight: 600;
 }
 
 .captured-icons {
+    display: inline-block;
     letter-spacing: -2px;
     color: #a0a0a0;
+    max-width: 110px;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 .moves-ticker {
@@ -80,6 +102,7 @@ body {
     width: 100%;
     max-width: min(90vw, 90vh, 400px);
     aspect-ratio: 1;
+    flex-shrink: 0;
 }
 
 .chessboard {
@@ -91,6 +114,7 @@ body {
     border-radius: 6px;
     overflow: hidden;
     box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    position: relative; /* координатное пространство для абсолютных клонов */
 }
 
 .square {
@@ -129,27 +153,33 @@ body {
     position: absolute;
 }
 
-/* Фигуры внутри ячеек через обычный флекс */
+.square.in-check {
+    background-color: rgba(220, 50, 50, 0.6) !important;
+}
+
+/* Фигуры */
 .piece {
     width: 85%;
     height: 85%;
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
-    cursor: grab;
+    cursor: pointer;
     filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.3));
 }
 
+/* Координаты: файлы справа-снизу, ранги слева-сверху */
 .square-coord {
     position: absolute;
     font-size: 9px;
     font-weight: bold;
     pointer-events: none;
     opacity: 0.6;
-    bottom: 2px;
-    right: 3px;
 }
+.square-coord.file { bottom: 1px; right: 3px; }
+.square-coord.rank { top: 1px; left: 3px; }
 
+/* Окно превращения */
 #promotion-modal {
     position: fixed;
     inset: 0;
@@ -171,20 +201,22 @@ body {
 .promo-piece {
     width: 50px;
     height: 50px;
-    background: #363330;
+    background-color: #363330;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
     border-radius: 8px;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
+/* Управление */
 .controls {
     width: 100%;
     max-width: 420px;
     display: flex;
     justify-content: center;
     padding-bottom: 10px;
+    flex-shrink: 0;
 }
 
 .btn {

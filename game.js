@@ -1,96 +1,144 @@
 /* ==========================================================
-   ГЛАВНЫЙ УПРАВЛЯЮЩИЙ МОДУЛЬ (game.js)
+   КОНТРОЛЛЕР ИГРЫ (game.js)
+   - Блокировка ввода во время анимации и после мата
+   - Промоушен с отменой
+   - Рокировка: анимируем короля и ладью одновременно
+   - reset() инвалидирует pending-колбэки через animationToken
    ========================================================== */
 
 const GameController = (() => {
     let selectedSquare = null;
-    let legalMoves = [];
+    let validMoves = [];
     let lastMove = null;
+    let isAnimating = false;
+    let animationToken = 0;
 
     function updateView() {
-        BoardRenderer.renderBoardState(
-            ChessEngine.board(),
-            selectedSquare,
-            legalMoves,
-            lastMove
-        );
-        BoardRenderer.updateUIInfo(ChessEngine);
+        BoardRenderer.renderBoard(lastMove);
+        BoardRenderer.updateUIInfo();
     }
 
-    function handleSquareClick(square) {
-        const piece = ChessEngine.get(square);
+    function handleSquareClick(squareName) {
+        if (isAnimating) return;
+        if (ChessEngine.inCheckmate() || ChessEngine.inDraw()) return;
+
+        const clickedPiece = ChessEngine.get(squareName);
 
         if (selectedSquare === null) {
-            if (piece && piece.color === ChessEngine.turn()) {
-                selectedSquare = square;
-                legalMoves = ChessEngine.moves({ square: square, verbose: true });
-                updateView();
+            if (clickedPiece && clickedPiece.color === ChessEngine.turn()) {
+                selectedSquare = squareName;
+                validMoves = ChessEngine.moves({ square: squareName, verbose: true });
+                const targetSquares = validMoves.map(m => m.to);
+                BoardRenderer.highlightSquares(squareName, targetSquares);
+            }
+            return;
+        }
+
+        const targetMove = validMoves.find(m => m.to === squareName);
+
+        if (targetMove) {
+            const isPromotion =
+                targetMove.piece === 'p' &&
+                (squareName[1] === '8' || squareName[1] === '1');
+
+            const executeMove = (promoPiece) => {
+                if (isPromotion && !promoPiece) {
+                    // Отмена превращения
+                    selectedSquare = null;
+                    BoardRenderer.highlightSquares(null, []);
+                    updateView();
+                    return;
+                }
+
+                const moveData = { from: selectedSquare, to: squareName };
+                if (isPromotion) moveData.promotion = promoPiece;
+
+                const result = ChessEngine.move(moveData);
+
+                selectedSquare = null;
+                validMoves = [];
+                BoardRenderer.highlightSquares(null, []);
+
+                if (!result) return;
+
+                lastMove = { from: result.from, to: result.to };
+
+                // Собираем список анимаций: основная фигура + ладья при рокировке
+                const animations = [{ from: result.from, to: result.to }];
+                if (result.flags.includes('k') || result.flags.includes('q')) {
+                    const rank = result.color === 'w' ? '1' : '8';
+                    if (result.flags.includes('k')) {
+                        animations.push({ from: 'h' + rank, to: 'f' + rank });
+                    } else {
+                        animations.push({ from: 'a' + rank, to: 'd' + rank });
+                    }
+                }
+
+                isAnimating = true;
+                const token = ++animationToken;
+
+                const finish = () => {
+                    if (token !== animationToken) return; // отменено reset()
+                    isAnimating = false;
+                    updateView();
+                };
+
+                if (typeof BoardAnimations !== 'undefined') {
+                    BoardAnimations.animateMoves(animations, finish);
+                } else {
+                    finish();
+                }
+            };
+
+            if (isPromotion) {
+                BoardRenderer.showPromotionDialog(ChessEngine.turn(), executeMove);
+            } else {
+                executeMove();
             }
         } else {
-            const targetMove = legalMoves.find(m => m.to === square);
-
-            if (targetMove) {
-                const isPromotion = targetMove.piece === 'p' && (square[1] === '8' || square[1] === '1');
-
-                if (isPromotion) {
-                    BoardRenderer.showPromotionDialog(ChessEngine.turn(), (chosenPiece) => {
-                        executeMove({
-                            from: selectedSquare,
-                            to: square,
-                            promotion: chosenPiece
-                        });
-                    });
-                } else {
-                    executeMove({
-                        from: selectedSquare,
-                        to: square,
-                        promotion: 'q'
-                    });
-                }
-            } else {
-                if (piece && piece.color === ChessEngine.turn()) {
-                    selectedSquare = square;
-                    legalMoves = ChessEngine.moves({ square: square, verbose: true });
-                    updateView();
-                } else {
-                    selectedSquare = null;
-                    legalMoves = [];
-                    updateView();
-                }
-            }
-        }
-    }
-
-    function executeMove(moveDetails) {
-        const move = ChessEngine.move(moveDetails);
-        if (move !== null) {
-            lastMove = move;
+            // Клик не по легальной цели
             selectedSquare = null;
-            legalMoves = [];
-            
-            updateView();
-            if (typeof BoardAnimations !== 'undefined') {
-                BoardAnimations.animateMove(move);
+            validMoves = [];
+            BoardRenderer.highlightSquares(null, []);
+            if (clickedPiece && clickedPiece.color === ChessEngine.turn()) {
+                handleSquareClick(squareName);
             }
         }
     }
 
     return {
         init: () => {
-            // Сначала строим сетку доски визуально, чтобы интерфейс появился мгновенно
-            BoardRenderer.initGrid(handleSquareClick);
-            
-            // Затем инициализируем движок и рисуем фигуры, как только он готов
-            ChessEngine.init(() => {
-                ChessEngine.reset();
+            ChessEngine.init((err) => {
+                if (err) {
+                    const statusEl = document.getElementById('status');
+                    if (statusEl) statusEl.textContent = 'Ошибка загрузки движка шахмат';
+                    return;
+                }
                 updateView();
+
+                const boardEl = document.getElementById('board');
+                if (boardEl) {
+                    boardEl.addEventListener('click', (e) => {
+                        const sq = e.target.closest('.square');
+                        if (sq && sq.dataset.square) {
+                            handleSquareClick(sq.dataset.square);
+                        }
+                    });
+                }
             });
         },
+
         reset: () => {
             ChessEngine.reset();
+
+            // Инвалидируем возможный pending-колбэк анимации
+            animationToken++;
+            isAnimating = false;
+
             selectedSquare = null;
-            legalMoves = [];
+            validMoves = [];
             lastMove = null;
+            BoardRenderer.highlightSquares(null, []);
             updateView();
         }
     };
