@@ -2,44 +2,48 @@
    МОДУЛЬ ПРАВИЛ И ДВИЖКА (engine.js)
    ========================================================== */
 
-// Создаем глобальный объект движка заранее
 const ChessEngine = (() => {
     let chessInstance = null;
     let isInitialized = false;
 
-    // Функция загрузки скрипта chess.js с проверкой
-    function loadChessLibrary(callback) {
+    function initEngine(callback) {
         if (typeof Chess !== 'undefined') {
-            chessInstance = new Chess();
-            isInitialized = true;
-            if (callback) callback();
-            return;
+            try {
+                chessInstance = new Chess();
+                isInitialized = true;
+                if (callback) callback();
+                return;
+            } catch (e) {
+                console.error('Ошибка создания объекта Chess:', e);
+            }
         }
 
+        // Используем стабильный CDN jsDelivr вместо cdnjs
         const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/chess.js/1.0.0-beta.6/chess.min.js';
-        script.async = true;
+        script.src = 'https://cdn.jsdelivr.net/npm/chess.js@1.0.0-beta.6/chess.min.js';
+        script.async = false;
+        
         script.onload = () => {
             try {
                 chessInstance = new Chess();
                 isInitialized = true;
-                console.log('Chess.js успешно загружен');
+                console.log('Chess.js успешно загружен через jsDelivr');
                 if (callback) callback();
             } catch (e) {
-                console.error('Ошибка инициализации Chess:', e);
+                console.error('Ошибка инициализации Chess после загрузки:', e);
             }
         };
+
+        script.onerror = () => {
+            console.error('Не удалось загрузить chess.js! Проверьте интернет-соединение.');
+        };
+
         document.head.appendChild(script);
     }
 
     return {
-        init: (callback) => {
-            if (isInitialized && chessInstance) {
-                if (callback) callback();
-                return;
-            }
-            loadChessLibrary(callback);
-        },
+        isReady: () => isInitialized && chessInstance !== null,
+        init: (callback) => initEngine(callback),
         reset: () => {
             if (chessInstance) chessInstance.reset();
         },
